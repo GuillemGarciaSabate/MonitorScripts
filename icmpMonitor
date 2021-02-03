@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+import subprocess
+import requests
+from influxdb import InfluxDBClient
+
+client = InfluxDBClient(host='localhost', port=8086, username='SECRET', password='SECRET')
+client.switch_database('GRAFANA')
+
+url = 'http://SECRET:8080'
+
+def ping( var1 ):
+    with open(var1) as file:
+        dump = file.read()
+        dump = dump.splitlines()
+
+        for ip in dump:
+
+            n=0
+            while n < 8:
+
+                try:
+                    n=n+1
+                    proc =  subprocess.check_output(['ping',ip,'-c','1','-s','56','-w','0.11'])#send the ping, if fails the except go
+                    if n > 1:
+                        print(ip)
+                    n = 8 #if ping is succesful, set counter to 10 and leave
+                except subprocess.CalledProcessError as exc:
+                    proc = exc.output
+                    print(proc)
+                    pass
+
+            substring1 = proc.split('time='.encode())
+
+            try:
+                substring2 = substring1[1].split(' ms'.encode())
+                time = substring2[0].decode("utf-8")
+            except:
+                time = 404
+                pass
+
+            time = float(time)
+
+            json_body=[
+            {
+                "measurement": "MyResponseData",
+                "tags": {
+                    "ip": ip
+                 },
+
+                 "fields": {
+                     "ms":time
+                            }
+             }]
+            client.write_points(json_body)
+
+            #use the 'auth' parameter to send requests with HTTP Basic Auth:
+            requests.post(url, json = json_body, auth = ('SECRET', 'SECRET'))
+            #print(x.status_code)
+
+
+            file.close()
+    return
+
+
+ping('ip-source.txt')
+ping('ip-source-Sedes.txt')
