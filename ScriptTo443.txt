@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+import subprocess
+import requests
+import socket
+from influxdb import InfluxDBClient
+
+client = InfluxDBClient(host='localhost', port=8086, username='XXX', password='XXX')
+client.switch_database('GRAFANA')
+
+
+def https( var1 ):
+    with open(var1) as file:
+        dump = file.read()
+        dump = dump.splitlines()
+
+        for ip in dump:
+
+            n=0
+            while n < 8:
+
+                try:
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    result = sock.connect_ex((ip,443))
+                    print(ip)
+                    print(result)
+                    n = 8 #if ping is succesful, set counter to 8 and leave
+                except subprocess.CalledProcessError as exc:
+                    proc = exc.output
+                    print(proc)
+                    pass
+                sock.close()
+
+                result=float(result)
+
+                json_body=[
+                    {
+                     "measurement": "serverData",
+                     "tags": {
+                        "ip": ip
+                     },
+
+                    "fields": {
+                         "status":result
+                                }
+                 }]
+                client.write_points(json_body)
+
+            #use the 'auth' parameter to send requests with HTTP Basic Auth:
+            #requests.post(url, json = json_body, auth = ('YYY', 'YYY'))
+            #print(x.status_code)
+
+
+            file.close()
+    return
+
+
+https('ip-servers.txt')
